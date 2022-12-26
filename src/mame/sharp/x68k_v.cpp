@@ -420,11 +420,10 @@ bool x68k_state::draw_gfx(bitmap_rgb32 &bitmap,rectangle cliprect)
 	return gfxblend;
 }
 
-template <bool Blend> rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, bool gfxblend, rgb_t blendpix)
+rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, bool gfxblend)
 {
 	uint16_t colour;
 	int divisor = 1;
-	bool blend = false;
 	if(m_crtc->gfx_double_scan())
 		divisor = 2;
 	if((m_video.reg[0] & 0x03) == 3)
@@ -436,13 +435,37 @@ template <bool Blend> rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, b
 	else if(gfxblend)
 	{
 		colour = m_gfxbitmap.pix(scanline / divisor, pixel);
-		if(Blend && (colour & 1))
-			blend = true;
-		else
-			blend = false;
+		if(colour || (m_video.gfx_pri == 2))
+			return pal555(colour, 6, 11, 1);
+	}
+	else
+	{
+		colour = m_gfxbitmap.pix(scanline / divisor, pixel) & 0xff;
+		if((m_gfxpalette->pen(colour) & 0xffffff) || (m_video.gfx_pri == 2))
+			return m_gfxpalette->pen(colour);
+	}
+	return 0;
+}
+
+rgb_t x68k_state::blend_gfx_pixel(int scanline, int pixel, bool gfxblend, rgb_t blendpix)
+{
+	uint16_t colour;
+	bool blend = false;
+	int divisor = 1;
+	if(m_crtc->gfx_double_scan())
+		divisor = 2;
+	if((m_video.reg[0] & 0x03) == 3)
+	{
+		colour = m_gfxbitmap.pix(scanline / divisor, pixel);
+		if(colour || (m_video.gfx_pri == 2))
+			return GGGGGRRRRRBBBBBI(colour);
+	}
+	else if(gfxblend)
+	{
+		colour = m_gfxbitmap.pix(scanline / divisor, pixel);
 		if(colour || (m_video.gfx_pri == 2))
 		{
-			if(blend)
+			if(colour & 1) // per-pixel translucency flag
 				return ((blendpix >> 1) & 0xff7f7f7f) + ((pal555(colour, 6, 11, 1) >> 1) & 0x7f7f7f);
 			else
 				return pal555(colour, 6, 11, 1);
@@ -451,7 +474,7 @@ template <bool Blend> rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, b
 	else
 	{
 		colour = m_gfxbitmap.pix(scanline / divisor, pixel) & 0xff;
-		if(Blend && (colour & 1))
+		if(colour & 1)
 		{
 			blend = true;
 			colour &= 0xfe;
@@ -819,7 +842,7 @@ uint32_t x68k_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 					{
 						if(!(pix & 0xffffff))
 							pix = outpix;
-						rgb_t blendpix = get_gfx_pixel<true>(scanline, pixel, gfx16bcol, pix);
+						rgb_t blendpix = blend_gfx_pixel(scanline, pixel, gfx16bcol, pix);
 						outpix = blendpix & 0xffffff ? blendpix : pix;
 						break;
 					}
