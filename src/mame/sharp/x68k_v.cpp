@@ -420,7 +420,7 @@ bool x68k_state::draw_gfx(bitmap_rgb32 &bitmap,rectangle cliprect)
 	return gfxblend;
 }
 
-template <bool Blend> rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, bool gfxblend, rgb_t blendpix)
+rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, bool gfxblend, rgb_t blendpix, bool textblend)
 {
 	uint16_t colour;
 	int divisor = 1;
@@ -436,7 +436,7 @@ template <bool Blend> rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, b
 	else if(gfxblend)
 	{
 		colour = m_gfxbitmap.pix(scanline / divisor, pixel);
-		if(Blend && (colour & 1))
+		if(textblend && (colour & 1))
 			blend = true;
 		else
 			blend = false;
@@ -451,7 +451,7 @@ template <bool Blend> rgb_t x68k_state::get_gfx_pixel(int scanline, int pixel, b
 	else
 	{
 		colour = m_gfxbitmap.pix(scanline / divisor, pixel) & 0xff;
-		if(Blend && (colour & 1))
+		if(textblend && (colour & 1))
 		{
 			blend = true;
 			colour &= 0xfe;
@@ -819,7 +819,7 @@ uint32_t x68k_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 					{
 						if(!(pix & 0xffffff))
 							pix = outpix;
-						rgb_t blendpix = get_gfx_pixel<true>(scanline, pixel, gfx16bcol, pix);
+						rgb_t blendpix = get_gfx_pixel(scanline, pixel, gfx16bcol, pix, textblend);
 						outpix = blendpix & 0xffffff ? blendpix : pix;
 						break;
 					}
