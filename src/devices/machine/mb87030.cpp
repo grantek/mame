@@ -10,7 +10,7 @@
 #include "emu.h"
 #include "mb87030.h"
 
-//#define VERBOSE 1
+#define VERBOSE 1
 #include "logmacro.h"
 
 
@@ -395,8 +395,10 @@ void mb87030_device::step(bool timeout)
 			break;
 		}
 
-		if (m_dma_transfer && m_tc && !(ctrl & S_INP) && !m_fifo.full())
+		if (m_dma_transfer && m_tc && !(ctrl & S_INP) && !m_fifo.full()) {
+			LOG("Calling m_dreq_handler(true)\n");
 			m_dreq_handler(true);
+		}
 
 		update_state((ctrl & S_INP) ? State::TransferRecvData : State::TransferSendData, 1);
 		break;
@@ -412,8 +414,10 @@ void mb87030_device::step(bool timeout)
 
 		LOG("pushing read data: %02X\n", data);
 		m_fifo.enqueue(data);
-		if (m_dma_transfer)
+		if (m_dma_transfer) {
+			LOG("Calling m_dreq_handler(true)\n");
 			m_dreq_handler(true);
+		}
 
 		if (m_sdgc & SDGC_XFER_ENABLE) {
 			m_serr |= SERR_XFER_OUT;
@@ -624,8 +628,10 @@ void mb87030_device::scmd_w(uint8_t data)
 
 		m_dma_transfer = !(data & 0x04);
 		LOG("%s Transfer\n", m_dma_transfer ? "DMA" : "Program");
-		if (!m_dma_transfer)
+		if (!m_dma_transfer) {
+			LOG("Calling m_dreq_handler(false)\n");
 			m_dreq_handler(false);
+		}
 		m_ssts |= SSTS_SPC_BUSY|SSTS_XFER_IN_PROGRESS;
 		update_state(State::TransferWaitReq, 5);
 		break;

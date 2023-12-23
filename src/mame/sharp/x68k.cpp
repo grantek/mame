@@ -140,6 +140,7 @@
 #define LOG_SYS (1U << 2)
 #define LOG_IRQ (1U << 3)
 //#define VERBOSE (LOG_FDC | LOG_SYS | LOG_IRQ)
+#define VERBOSE 1
 #include "logmacro.h"
 
 

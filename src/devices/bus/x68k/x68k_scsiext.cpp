@@ -14,6 +14,8 @@
 #include "bus/nscsi/hd.h"
 #include "machine/mb87030.h"
 
+// XXXXXXXXXXX
+#include "logmacro.h"
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
@@ -96,5 +98,4 @@ uint8_t x68k_scsiext_device::iack2()
 
 void x68k_scsiext_device::drq_w(int state)
 {
-	// TODO
 }
