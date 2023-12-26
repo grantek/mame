@@ -107,6 +107,13 @@ void nscsi_harddisk_device::scsi_command()
 		scsi_status_complete(SS_GOOD);
 		break;
 
+	case SC_REQUEST_SENSE: {
+		int lun = get_lun(scsi_cmdbuf[1] >> 5);
+		LOG("command REQUEST SENSE lun=%d alloc=%02x\n", lun, scsi_cmdbuf[4]);
+		handle_request_sense(lun);
+		break;
+  }
+
 	case SC_READ_6:
 		lba = ((scsi_cmdbuf[1] & 0x1f)<<16) | (scsi_cmdbuf[2]<<8) | scsi_cmdbuf[3];
 		blocks = scsi_cmdbuf[4];
