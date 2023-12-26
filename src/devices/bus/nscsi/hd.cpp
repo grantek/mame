@@ -150,19 +150,22 @@ void nscsi_harddisk_device::scsi_command()
 			std::fill_n(scsi_cmdbuf, 148, 0);
 
 			// vendor and product information must be padded with spaces
-			std::fill_n(&scsi_cmdbuf[8], 28, 0x20);
+			//std::fill_n(&scsi_cmdbuf[8], 28, 0x20); // maybe x68k needs a \0 ?
 
 			// From Seagate SCSI Commands Reference Manual (http://www.seagate.com/staticfiles/support/disc/manuals/scsi/100293068a.pdf), page 73:
 			// If the SCSI target device is not capable of supporting a peripheral device connected to this logical unit, the
 			// device server shall set these fields to 7Fh (i.e., PERIPHERAL QUALIFIER field set to 011b and PERIPHERAL DEVICE
 			// TYPE set to 1Fh).
-			if (lun != 0)
-				scsi_cmdbuf[0] = 0x7f;
+			//if (lun != 0)
+			//	scsi_cmdbuf[0] = 0x7f;
+			if (size == 0x24) // HACK: x68k seems to bork on the first INQUIRY, which happens to be a different alloc size as the second.
+				scsi_cmdbuf[0] = 0x02;
 			else
 				scsi_cmdbuf[0] = 0x00; // device is direct-access (e.g. hard disk)
 			scsi_cmdbuf[1] = 0x00; // media is not removable
 			scsi_cmdbuf[2] = 0x05; // device complies with SPC-3 standard
-			scsi_cmdbuf[3] = 0x01; // response data format = CCS
+			//scsi_cmdbuf[3] = 0x01; // response data format = CCS
+			scsi_cmdbuf[3] = 0x02; // SPC-3 from mb89352.cpp
 			scsi_cmdbuf[4] = 52;   // additional length
 			if(m_inquiry_data.empty()) {
 				LOG("IDNT tag not found in chd metadata, using default inquiry data\n");
@@ -170,7 +173,8 @@ void nscsi_harddisk_device::scsi_command()
 				// Apple HD SC setup utility needs to see this
 				strcpy((char *)&scsi_cmdbuf[8], " SEAGATE");
 				strcpy((char *)&scsi_cmdbuf[16], "          ST225N");
-				strcpy((char *)&scsi_cmdbuf[32], "1.00");
+				//strcpy((char *)&scsi_cmdbuf[32], "1.00");
+				strcpy((char *)&scsi_cmdbuf[32], "1.0"); // from mb89352.cpp - last byte is \0
 				scsi_cmdbuf[36] = 0x00; // # of extents high
 				scsi_cmdbuf[37] = 0x08; // # of extents low
 				scsi_cmdbuf[38] = 0x00; // group 0 commands 0-1f
