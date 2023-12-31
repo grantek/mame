@@ -13,6 +13,7 @@
 
 #include "bus/nscsi/hd.h"
 #include "machine/mb87030.h"
+#include "machine/hd63450.h"
 
 // XXXXXXXXXXX
 #include "logmacro.h"
@@ -45,6 +46,7 @@ static void scsi_devices(device_slot_interface &device)
 // device machine config
 void x68k_scsiext_device::device_add_mconfig(machine_config &config)
 {
+	auto hd63450 = downcast<hd63450_device *>(config.device("hd63450"));
 	NSCSI_BUS(config, "scsi");
 	NSCSI_CONNECTOR(config, "scsi:0", scsi_devices, "harddisk");
 	NSCSI_CONNECTOR(config, "scsi:1", scsi_devices, nullptr);
@@ -62,6 +64,8 @@ void x68k_scsiext_device::device_add_mconfig(machine_config &config)
 			spc.out_irq_callback().set(*this, FUNC(x68k_scsiext_device::irq_w));
 			spc.out_dreq_callback().set(*this, FUNC(x68k_scsiext_device::drq_w));
 		});
+	hd63450->dma_read<1>().set("scsi:7:spc", FUNC(mb89352_device::dma_r));
+	hd63450->dma_write<1>().set("scsi:7:spc", FUNC(mb89352_device::dma_w));
 }
 
 x68k_scsiext_device::x68k_scsiext_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
