@@ -39,18 +39,21 @@ void t10spc::ExecCommand()
 	switch( command[ 0 ] )
 	{
 	case T10SPC_CMD_TEST_UNIT_READY:
+		m_device->logerror("T10SPC: TEST UNIT READY\n");
 		m_phase = SCSI_PHASE_STATUS;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = 0;
 		break;
 
 	case T10SPC_CMD_RECALIBRATE:
+		m_device->logerror("T10SPC: RECALIBRATE\n");
 		m_phase = SCSI_PHASE_STATUS;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = 0;
 		break;
 
 	case T10SPC_CMD_REQUEST_SENSE:
+		m_device->logerror("T10SPC: REQUEST SENSE\n");
 		m_phase = SCSI_PHASE_DATAIN;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		if (command[4] == 0)
@@ -68,12 +71,14 @@ void t10spc::ExecCommand()
 		break;
 
 	case T10SPC_CMD_START_STOP_UNIT:
+		m_device->logerror("T10SPC: START STOP UNIT\n");
 		m_phase = SCSI_PHASE_STATUS;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = 0;
 		break;
 
 	case T10SPC_CMD_SEND_DIAGNOSTIC:
+		m_device->logerror("T10SPC: SEND DIAGNOSTIC\n");
 		m_phase = SCSI_PHASE_DATAOUT;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = SCSILengthFromUINT16(&command[3]);
@@ -138,7 +143,7 @@ void t10spc::WriteData( uint8_t *data, int dataLength )
 		break;
 
 	default:
-		m_device->logerror( "SCSIDEV unknown write %02x\n", command[ 0 ] );
+		m_device->logerror( "T10SPC: SCSIDEV unknown write %02x\n", command[ 0 ] );
 		break;
 	}
 }

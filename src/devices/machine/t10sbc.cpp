@@ -38,6 +38,7 @@ void t10sbc::ExecCommand()
 	switch ( command[0] )
 	{
 	case T10SBC_CMD_FORMAT_UNIT:
+		m_device->logerror("T10SBC: FORMAT UNIT\n");
 		m_phase = SCSI_PHASE_STATUS;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = 0;
@@ -75,6 +76,7 @@ void t10sbc::ExecCommand()
 		break;
 
 	case T10SPC_CMD_INQUIRY:
+		m_device->logerror("T10SBC: INQUIRY\n");
 		m_phase = SCSI_PHASE_DATAIN;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = SCSILengthFromUINT8( &command[ 4 ] );
@@ -88,12 +90,14 @@ void t10sbc::ExecCommand()
 		break;
 
 	case T10SPC_CMD_MODE_SENSE_6:
+		m_device->logerror("T10SBC: MODE SENSE 6\n");
 		m_phase = SCSI_PHASE_DATAIN;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = SCSILengthFromUINT8( &command[ 4 ] );
 		break;
 
 	case T10SBC_CMD_READ_CAPACITY:
+		m_device->logerror("T10SBC: READ CAPACITY\n");
 		m_phase = SCSI_PHASE_DATAIN;
 		m_status_code = SCSI_STATUS_CODE_GOOD;
 		m_transfer_length = 8;
