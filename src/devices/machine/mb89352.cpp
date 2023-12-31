@@ -102,7 +102,10 @@
  *
  */
 
+#define VERBOSE 1
+
 #include "emu.h"
+#include "logmacro.h"
 #include "mb89352.h"
 
 // SCSI lines readable via PSNS register (reg 5)
@@ -273,7 +276,7 @@ void mb89352_device::set_phase(int phase)
 		m_line_status &= ~MB89352_LINE_IO;
 		break;
 	}
-	logerror("MB89352: phase set to %i\n",m_phase);
+	LOG("MB89352: phase set to 0x%02x\n",m_phase);
 }
 
 uint8_t mb89352_device::mb89352_r(offs_t offset)
@@ -282,6 +285,7 @@ uint8_t mb89352_device::mb89352_r(offs_t offset)
 	switch(offset & 0x0f)
 	{
 	case 0x00:  // BDID - Bus Device ID
+		LOG("mb89352_r: BDID 0x%02x\n",1 << m_bdid);
 		return (1 << m_bdid);
 	case 0x01:  // SCTL - SPC Control
 		ret = 0x00;
@@ -299,16 +303,22 @@ uint8_t mb89352_device::mb89352_r(offs_t offset)
 			ret |= 0x02;
 		if(m_int_enable)
 			ret |= 0x01;
+		LOG("mb89352_r: SCTL 0x%02x\n",ret);
 		return ret;
 	case 0x02:  // SCMD - Command
+		LOG("mb89352_r: SCMD 0x%02x\n", m_temp);
 		return m_scmd;
 	case 0x03:  // Unused
+		LOG("mb89352_r: 0x03 ***UNUSED*** 0xff\n");
 		return 0xff;
 	case 0x04:  // INTS - Interrupt Sense
+		LOG("mb89352_r: INTS 0x%02x\n", m_ints);
 		return m_ints;
 	case 0x05:  // PSNS - Phase Sense
+		LOG("mb89352_r: PSNS 0x%02x\n",m_line_status);
 		return m_line_status;  // active low -- but Human68k expects it to be zero?
 	case 0x06:  // SSTS - SPC Status
+		LOG("mb89352_r: SSTS 0x%02x\n", m_spc_status);
 		return m_spc_status;
 	case 0x07:  // SERR - SPC Error Status
 		/*  #define SERR_SCSI_PAR   0x80
@@ -317,9 +327,12 @@ uint8_t mb89352_device::mb89352_r(offs_t offset)
 		    #define SERR_PHASE_ERR  0x04
 		    #define SERR_SHORT_XFR  0x02
 		    #define SERR_OFFSET     0x01*/
+		LOG("mb89352_r: SERR ***UNIMPLEMENTED*** 0x00\n");
 		return 0;
 	case 0x08:  // PCTL - Phase Control
-		return ((m_busfree_int_enable) ? (m_line_status & 0x07) | 0x80 : (m_line_status & 0x07));
+		ret = ((m_busfree_int_enable) ? (m_line_status & 0x07) | 0x80 : (m_line_status & 0x07));
+		LOG("mb89352_r: PCTL 0x%02x\n", ret);
+		return ret;
 	case 0x0a:  // DREG - Data register (for data transfers)
 		if(m_spc_status & SSTS_XFER_IN_PROGRESS)
 		{
@@ -342,18 +355,25 @@ uint8_t mb89352_device::mb89352_r(offs_t offset)
 					set_phase(SCSI_PHASE_STATUS);
 			}
 		}
+		LOG("mb89352_r: DREG 0x%02x %c\n", m_data, m_data >= 0x20 && m_data < 0x7f ? (char)m_data : ' ');
 		return m_data;
 	case 0x0b:  // TEMP - Temporary
-		logerror("mb89352: read temporary register.\n");
+		LOG("mb89352_r: TEMP 0x%02x\n", m_temp);
 		return m_temp;
 	case 0x0c:  // TCH - Transfer Counter High
-		return (m_transfer_count & 0x00ff0000) >> 16;
+		ret = (m_transfer_count & 0x00ff0000) >> 16;
+		LOG("mb89352_r: TCH 0x%02x\n", ret);
+		return ret;
 	case 0x0d:  // TCM - Transfer Counter Mid
-		return (m_transfer_count & 0x0000ff00) >> 8;
+		ret = (m_transfer_count & 0x0000ff00) >> 8;
+		LOG("mb89352_r: TCM 0x%02x\n", ret);
+		return ret;
 	case 0x0e:  // TCL - Transfer Counter Low
-		return (m_transfer_count & 0x000000ff);
+		ret = (m_transfer_count & 0x000000ff);
+		LOG("mb89352_r: TCL 0x%02x\n", ret);
+		return ret;
 	default:
-		logerror("mb89352: read from register %02x\n",offset & 0x0f);
+		LOG("mb89352_r: ***UNKNOWN*** reg 0x%02x: 0xff\n",offset & 0x0f);
 	}
 	return 0xff;
 }
@@ -366,60 +386,60 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 		m_bdid = data;
 		m_spc_status &= ~SSTS_TARG_CONNECTED;
 		m_spc_status |= SSTS_INIT_CONNECTED;
-		logerror("mb89352: BDID set to %i\n",data);
+		LOG("mb89352: BDID set to 0x%02x\n",data);
 		break;
 	case 0x01:  // SCTL - SPC Control
 		if(data & 0x80)  // reset and disable
 		{
 			device_reset();
-			logerror("mb89352: SCTL: Reset and disable.\n");
+			LOG("mb89352: SCTL: Reset and disable.\n");
 		}
 		else
 			m_reset_and_disable = 0;
 		if(data & 0x40)
 		{
 			m_control_reset = 1;
-			logerror("mb89352: SCTL: Control reset.\n");
+			LOG("mb89352: SCTL: Control reset.\n");
 		}
 		else
 			m_control_reset = 0;
 		if(data & 0x10)
 		{
 			m_arbit_enable = 1;
-			logerror("mb89352: SCTL: Arbitration enabled.\n");
+			LOG("mb89352: SCTL: Arbitration enabled.\n");
 		}
 		else
 			m_arbit_enable = 0;
 		if(data & 0x08)
 		{
 			m_parity_enable = 1;
-			logerror("mb89352: SCTL: Parity enabled.\n");
+			LOG("mb89352: SCTL: Parity enabled.\n");
 		}
 		else
 			m_parity_enable = 0;
 		if(data & 0x04)
 		{
 			m_sel_enable = 1;
-			logerror("mb89352: SCTL: Selection enabled.\n");
+			LOG("mb89352: SCTL: Selection enabled.\n");
 		}
 		else
 			m_sel_enable = 0;
 		if(data & 0x02)
 		{
 			m_resel_enable = 1;
-			logerror("mb89352: SCTL: Reselection enabled.\n");
+			LOG("mb89352: SCTL: Reselection enabled.\n");
 		}
 		else
 			m_resel_enable = 0;
 		if(data & 0x01)
 		{
 			m_int_enable = 1;
-			logerror("mb89352: SCTL: Interrupts enabled.\n");
+			LOG("mb89352: SCTL: Interrupts enabled.\n");
 		}
 		else
 		{
 			m_int_enable = 0;
-			logerror("mb89352: SCTL: Interrupts disabled.\n");
+			LOG("mb89352: SCTL: Interrupts disabled.\n");
 		}
 		break;
 	case 0x02:  // SCMD - Command
@@ -448,7 +468,7 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 				if(m_int_enable != 0)
 					m_irq_cb(1);
 			}
-			logerror("mb89352: SCMD: Bus free\n");
+			LOG("mb89352: SCMD: Bus free\n");
 			break;
 		case 0x01:
 			// Selection
@@ -483,15 +503,15 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 				m_ints |= INTS_TIMEOUT;
 			if(m_int_enable != 0)
 				m_irq_cb(1);
-			logerror("mb89352: SCMD: Selection (SCSI ID%i)\n",m_target);
+			LOG("mb89352: SCMD: Selection (SCSI ID%i)\n",m_target);
 			break;
 		case 0x02:  // Reset ATN
 			m_line_status &= ~MB89352_LINE_ATN;
-			logerror("mb89352: SCMD: Reset ATN\n");
+			LOG("mb89352: SCMD: Reset ATN\n");
 			break;
 		case 0x03:  // Set ATN
 			m_line_status |= MB89352_LINE_ATN;
-			logerror("mb89352: SCMD: Set ATN\n");
+			LOG("mb89352: SCMD: Set ATN\n");
 			break;
 		case 0x04:   // Transfer
 			m_transfer_index = 0;
@@ -499,7 +519,7 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 			if(m_phase == SCSI_PHASE_DATAIN)  // if we are reading data...
 			{
 				m_spc_status &= ~SSTS_DREG_EMPTY;  // DREG is no longer empty
-				logerror("data-in\n");
+				LOG("mb89352: SCMD: xfer data-in\n");
 				read_data(m_buffer, 512);
 			}
 			if(m_phase == SCSI_PHASE_MESSAGE_IN)
@@ -508,19 +528,19 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 				m_data = 0;
 				m_temp = 0x00;
 				set_phase(SCSI_PHASE_BUS_FREE);
-				logerror("message-in\n");
+				LOG("mb89352: SCMD: xfer message-in\n");
 				m_spc_status &= ~SSTS_XFER_IN_PROGRESS;
 				m_command_index = 0;
 			}
 			if(m_phase == SCSI_PHASE_COMMAND)
 			{
-				logerror("command-in\n");
+				LOG("mb89352: SCMD: xfer command-in\n");
 				m_spc_status |= SSTS_SPC_BSY;
 			}
-			logerror("mb89352: SCMD: Start Transfer %02x\n",m_phase);
+			LOG("mb89352: SCMD: Start Transfer %02x\n",m_phase);
 			break;
 		case 0x05:  // Transfer pause
-			logerror("mb89352: SCMD: Pause Transfer\n");
+			LOG("mb89352: SCMD: Pause Transfer\n");
 			break;
 		case 0x06:  // reset REQ/ACK
 			m_line_status &= ~MB89352_LINE_ACK;
@@ -534,12 +554,12 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 				m_spc_status &= ~SSTS_TARG_CONNECTED;
 				m_spc_status &= ~SSTS_SPC_BSY;
 			}
-			logerror("mb89352: SCMD: Reset REQ/ACK\n");
+			LOG("mb89352: SCMD: Reset REQ/ACK\n");
 			break;
 		case 0x07:  // set REQ/ACK
 			m_line_status &= ~MB89352_LINE_REQ;
 			m_line_status |= MB89352_LINE_ACK;
-			logerror("mb89352: SCMD: Set REQ/ACK\n");
+			LOG("mb89352: SCMD: Set REQ/ACK\n");
 			if(m_phase == SCSI_PHASE_COMMAND)
 			{
 				m_command[m_command_index++] = m_temp;  // temp register puts data onto the SCSI bus
@@ -554,13 +574,13 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 						set_phase(SCSI_PHASE_STATUS);
 					else
 						set_phase(phase);
-					logerror("Command executed: ");
+					LOG("Command executed: ");
 					//m_spc_status &= ~SSTS_SPC_BSY;
 					//m_ints |= INTS_COMMAND_COMPLETE;
 
 					for(x=0;x<m_command_index;x++)
-						logerror(" %02x",m_command[x]);
-					logerror("\n");
+						LOG(" %02x",m_command[x]);
+					LOG("\n");
 				}
 				return;
 			}
@@ -579,27 +599,27 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 			}
 			break;
 		default:
-			logerror("mb89352: SCMD: Unimplemented command %02x\n",(data & 0xe0) >> 5);
+			LOG("mb89352: SCMD: Unimplemented command %02x\n",(data & 0xe0) >> 5);
 			break;
 		}
 		break;
 	case 0x04:  // INTS - Interrupt Sense
 		m_ints &= ~data;  // resets relevant status bits to zero
 		m_irq_cb(0);  // clear IRQ
-		logerror("mb89352: Reset INTS status bits %02x\n",data);
+		LOG("mb89352: Reset INTS status bits %02x\n",data);
 		break;
 	case 0x08:  // PCTL - Phase control
 		if((data & 0x80) == 0 && (m_phase == SCSI_PHASE_SELECT))  // if writing 0 to bit 7, selection phase is reset
 		{
 			m_ints &= ~INTS_SELECTION;
 			m_target = 0;
-			logerror("mb89352: PCTL selection cancelled\n");
+			LOG("mb89352: PCTL selection cancelled\n");
 		}
 		// writing to the low 3 bits sets the phase
 		if((m_phase & 0x07) != (data & 0x07))
 			set_phase(data & 0x07);
 		m_busfree_int_enable = data & 0x80;
-		logerror("mb89352: PCTL write %02x\n",data);
+		LOG("mb89352: PCTL write %02x\n",data);
 		break;
 	case 0x0a:  // DREG - Data register
 		if(m_phase == SCSI_PHASE_COMMAND)
@@ -616,12 +636,12 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 					set_phase(SCSI_PHASE_STATUS);
 				else
 					set_phase(phase);
-				logerror("Command executed: ");
+				LOG("Command executed: ");
 				//m_ints |= INTS_COMMAND_COMPLETE;
 
 				for(x=0;x<m_command_index;x++)
-					logerror(" %02x",m_command[x]);
-				logerror("\n");
+					LOG(" %02x",m_command[x]);
+				LOG("\n");
 			}
 			return;
 		}
@@ -647,7 +667,7 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 		break;
 	case 0x0b:  // TEMP - Temporary
 		m_temp = data;
-		logerror("mb89352: Write %02x to temporary register\n",data);
+		LOG("mb89352: Write %02x to temporary register\n",data);
 		break;
 	case 0x0c:  // TCH - Transfer Counter High
 		m_transfer_count = (m_transfer_count & 0x0000ffff) | (data << 16);
@@ -655,7 +675,7 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 			m_spc_status |= SSTS_TC_ZERO;
 		else
 			m_spc_status &= ~SSTS_TC_ZERO;
-		logerror("mb89352: TCH: Write %02x [%06x]\n",data,m_transfer_count);
+		LOG("mb89352: TCH: Write %02x [%06x]\n",data,m_transfer_count);
 		break;
 	case 0x0d:  // TCM - Transfer Counter Mid
 		m_transfer_count = (m_transfer_count & 0x00ff00ff) | (data << 8);
@@ -663,7 +683,7 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 			m_spc_status |= SSTS_TC_ZERO;
 		else
 			m_spc_status &= ~SSTS_TC_ZERO;
-		logerror("mb89352: TCM: Write %02x [%06x]\n",data,m_transfer_count);
+		LOG("mb89352: TCM: Write %02x [%06x]\n",data,m_transfer_count);
 		break;
 	case 0x0e:  // TCL - Transfer Counter Low
 		m_transfer_count = (m_transfer_count & 0x00ffff00) | data;
@@ -671,9 +691,9 @@ void mb89352_device::mb89352_w(offs_t offset, uint8_t data)
 			m_spc_status |= SSTS_TC_ZERO;
 		else
 			m_spc_status &= ~SSTS_TC_ZERO;
-		logerror("mb89352: TCL: Write %02x [%06x]\n",data,m_transfer_count);
+		LOG("mb89352: TCL: Write %02x [%06x]\n",data,m_transfer_count);
 		break;
 	default:
-		logerror("mb89352: write %02x to register %02x\n",data,offset & 0x0f);
+		LOG("mb89352: write %02x to register %02x\n",data,offset & 0x0f);
 	}
 }
